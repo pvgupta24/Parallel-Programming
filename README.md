@@ -1,5 +1,7 @@
-# Parallel-Programming
+## Parallel-Programming
 
-### Threads in Java
+#### Heterogenous Parallel Computing with Cuda
 
-### Heterogenous Parallel Computing with Cuda
+#### Threads in Java
+
+#### OpenMP

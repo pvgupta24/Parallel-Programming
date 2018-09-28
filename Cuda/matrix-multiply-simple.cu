@@ -19,12 +19,12 @@ void catchCudaError(cudaError_t error){
 #define COL2 4000
 
 //Kernel function
-__global__ void multiply(int a[][COMMON_WIDTH], int b[][COL2], int c[][COL2]){
+__global__ void multiply(float a[][COMMON_WIDTH], float b[][COL2], float c[][COL2]){
     //Skip till required block + the required thread index in the block
     uint x = blockDim.x * blockIdx.x + threadIdx.x;
     uint y = blockDim.y * blockIdx.y + threadIdx.y;
 
-    int cell = 0;
+    float cell = 0;
     if(x < ROW1 && y < COL2){
         for(uint i = 0; i < COMMON_WIDTH; ++i)
             cell += a[x][i]*b[i][y];
@@ -34,18 +34,17 @@ __global__ void multiply(int a[][COMMON_WIDTH], int b[][COL2], int c[][COL2]){
 
 int main(){
 
-    int a[ROW1][COMMON_WIDTH], b[COMMON_WIDTH][COL2], c[ROW1][COL2]; //Host 2-d arrays
-    int (*d_a)[COMMON_WIDTH], (*d_b)[COL2], (*d_c)[COL2]; //Device 2-d arrays
+    float a[ROW1][COMMON_WIDTH], b[COMMON_WIDTH][COL2], c[ROW1][COL2]; //Host 2-d arrays
+    float (*d_a)[COMMON_WIDTH], (*d_b)[COL2], (*d_c)[COL2]; //Device 2-d arrays
 
     clock_t start, end;
     cudaEvent_t d_start, d_end;
     catchCudaError(cudaEventCreate(&d_start));
     catchCudaError(cudaEventCreate(&d_end));
 
-
-    size_t sizeA = ROW1*COMMON_WIDTH*sizeof(int);
-    size_t sizeB = COMMON_WIDTH*COL2*sizeof(int);
-    size_t sizeC = ROW1*COL2* sizeof(int);
+    size_t sizeA = ROW1 * COMMON_WIDTH * sizeof(float);
+    size_t sizeB = COMMON_WIDTH * COL2 * sizeof(float);
+    size_t sizeC = ROW1 * COL2 * sizeof(float);
     //Allocate device memory(double ptr as assigning value to a pointer as defined in CUDA API)
     catchCudaError(cudaMalloc((void **)&d_a, sizeA));
     catchCudaError(cudaMalloc((void **)&d_b, sizeB));
@@ -81,25 +80,19 @@ int main(){
 
     //Waits till event is recorded
     catchCudaError(cudaEventSynchronize(d_end));
-    int cell;
+    float cell;
     start = clock();
     for(uint i=0; i<ROW1; ++i)
         for(uint j=0; j<COL2; ++j){
             cell = 0;        
             for(uint k=0; k<COMMON_WIDTH; ++k)
                 cell += a[i][k]*b[k][j];
-
-            if(cell != c[i][j]){
-                printf("Incorrect Matrix Multiplication");
-                exit(-3);
-            }
         }
     end = clock();
     float time_taken = 1000.0* (end - start)/CLOCKS_PER_SEC;
     float d_time_taken;
     cudaEventElapsedTime(&d_time_taken, d_start, d_end);
 
-    printf("Correct matrix multiplication\n");
     printf("Host time = %f ms\nDevice Time = %f ms\n", time_taken, d_time_taken);    
     //Free device memory
     catchCudaError(cudaFree(d_a));

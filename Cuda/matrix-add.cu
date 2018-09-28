@@ -13,8 +13,8 @@ void catchCudaError(cudaError_t error){
 //=====================================================================
 
 #define DIM 32
-#define ROW 40
-#define COL 4000
+#define ROW 600
+#define COL 600
 
 //Kernel function
 __global__ void add(int a[][COL], int b[][COL], int c[][COL]){
@@ -29,7 +29,9 @@ int main(){
 
     int  a[ROW][COL], b[ROW][COL], c[ROW][COL]; //Host 2-d arrays
     int (*d_a)[COL], (*d_b)[COL], (*d_c)[COL]; //Device 2-d arrays
-
+    // auto a = new int[ROW][COL];
+    // auto b = new int[ROW][COL];
+    // auto c = new int[ROW][COL];
     clock_t start, end;
     cudaEvent_t d_start, d_end;
     catchCudaError(cudaEventCreate(&d_start));
@@ -55,10 +57,11 @@ int main(){
 
     catchCudaError(cudaEventRecord(d_start));
 
-    dim3 dimGrid(DIM, DIM);
-    dim3 dimBlock(ceil(1.0*ROW/DIM), ceil(1.0*COL/DIM)) ;
+    dim3 dimBlock(DIM, DIM);
+    dim3 dimGrid(ceil(1.0*ROW/DIM), ceil(1.0*COL/DIM)) ;
     //Max 1024 threads in each block(max 65,535)
     add <<< dimGrid, dimBlock >>>(d_a, d_b, d_c);
+	cudaThreadSynchronize();
     catchCudaError(cudaEventRecord(d_end));    
     
     //Copy to Host
@@ -72,28 +75,34 @@ int main(){
 
     start = clock();
     for(uint i=0; i<ROW; ++i)
-        for(uint j=0; j<COL; ++j)
+        for(uint j=0; j<COL; ++j){
             if(a[i][j] + b[i][j] != c[i][j]){
                 printf("Incorrect matrix addition (%d,%d)\n", i, j);
                 exit(-3);
             }
+        }
     end = clock();
     float time_taken = 1000.0* (end - start)/CLOCKS_PER_SEC;
     float d_time_taken;
     cudaEventElapsedTime(&d_time_taken, d_start, d_end);
 
     printf("Correct matrix addition\n");
-    printf("Host time = %f ms\nDevice Time = %f ms\n", time_taken, d_time_taken);    
+    printf("Host time = %f ms\nDevice Time = %f ms\n", time_taken, d_time_taken);  
+
+    // delete[] a;  
+    // delete[] b;  
+    // delete[] c;  
     //Free device memory
     catchCudaError(cudaFree(d_a));
     catchCudaError(cudaFree(d_b));
     catchCudaError(cudaFree(d_c));
 
 }   
-
+//==============================================================================================
 /*
 Output
 Correct matrix addition
 Host time = 0.422000 ms
 Device Time = 0.143072 ms
 */
+//==============================================================================================

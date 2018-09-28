@@ -15,16 +15,16 @@ void catchCudaError(cudaError_t error){
 #define TILE 16
 #define N 256
 //Kernel function
-__global__ void multiply(int *a,int *b,int *c, 
+__global__ void multiply(float *a, float *b, float *c, 
                          int r_a,int c_a,int r_b,int c_b,int r_c,int c_c){
 
-    __shared__ int s_a[TILE][TILE];
-    __shared__ int s_b[TILE][TILE];
+    __shared__ float s_a[TILE][TILE];
+    __shared__ float s_b[TILE][TILE];
     //Skip till required block + the required thread index in the block
     uint row = blockDim.y * blockIdx.y + threadIdx.y;
     uint col = blockDim.x * blockIdx.x + threadIdx.x;
     //Transpose
-    int cell = 0;
+    float cell = 0;
     s_a[threadIdx.y][threadIdx.x] = 0;
     s_b[threadIdx.y][threadIdx.x] = 0;
 
@@ -54,9 +54,9 @@ __global__ void multiply(int *a,int *b,int *c,
 int main(){
 
     //Host Arrays
-    int *a, *b, *c;
+    float *a, *b, *c;
     //Device Arrays
-    int *d_a, *d_b, *d_c;
+    float *d_a, *d_b, *d_c;
 
     //Set dimensions
     int r_a = N; 
@@ -77,13 +77,13 @@ int main(){
     catchCudaError(cudaEventCreate(&d_end));
 
 
-    size_t sizeA = r_a * c_a * sizeof(int);
-    size_t sizeB = r_b * c_b * sizeof(int);
-    size_t sizeC = r_c * c_c * sizeof(int);
+    size_t sizeA = r_a * c_a * sizeof(float);
+    size_t sizeB = r_b * c_b * sizeof(float);
+    size_t sizeC = r_c * c_c * sizeof(float);
     //Allocate host memory
-    a = (int *)malloc(sizeA);
-    b = (int *)malloc(sizeB);
-    c = (int *)malloc(sizeC);
+    a = (float *)malloc(sizeA);
+    b = (float *)malloc(sizeB);
+    c = (float *)malloc(sizeC);
 
     //Allocate device memory(double ptr as assigning value to a pointer as defined in CUDA API)
     catchCudaError(cudaMalloc((void **)&d_a, sizeA));
@@ -94,20 +94,14 @@ int main(){
     for(uint i=0; i < r_a; ++i){
         for(uint j=0; j < c_a; ++j){
             a[i * c_a + j] = i+j;
-            // printf("%d ",a[i * c_a + j]);
         }
-    // printf("\n");
     }
     
-    // printf("======\n");
     for(uint i=0; i < r_b; ++i){
         for(uint j=0; j < c_b; ++j){
             b[i * c_b + j] = i-j;    
-            // printf("%d ",b[i * c_b + j]);            
         }
-    // printf("\n");        
     }
-    // printf("======\n");
     
 
     //Copy to Device
@@ -130,28 +124,20 @@ int main(){
 
     //Waits till event is recorded
     catchCudaError(cudaEventSynchronize(d_end));
-    int cell;
+    float cell;
     start = clock();
     for(uint i=0; i < r_c; ++i){
         for(uint j=0; j < c_c; ++j){
             cell = 0;        
             for(uint k=0; k < c_a; ++k)
                 cell += a[i * c_a + k]*b[k * c_b + j];
-            
-            // printf("%d ",c[i * c_c + j]);
-            if(cell != c[i * c_c + j]){
-                printf("Incorrect Matrix Multiplication\n");
-                exit(-3);
-            }
         }
-        // printf("\n");
     }
     end = clock();
     float time_taken = 1000.0* (end - start)/CLOCKS_PER_SEC;
     float d_time_taken;
     cudaEventElapsedTime(&d_time_taken, d_start, d_end);
 
-    printf("Correct matrix multiplication\n");
     printf("Host time = %f ms\nDevice Time = %f ms\n", time_taken, d_time_taken);    
     //Free Host memory
     free(a);
